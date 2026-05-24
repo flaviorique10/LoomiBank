@@ -10,6 +10,9 @@ using MassTransit;
 using Transactions.Application.Consumers;
 using System.Reflection;
 using Microsoft.OpenApi;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +53,24 @@ builder.Services.AddSwaggerGen(c =>
 
 // 1. Libera o uso de Controllers
 builder.Services.AddControllers();
+
+// CONFIGURAÇÃO DO JWT BEARER AUTHENTICATION (APENAS VALIDAÇÃO)
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // 2. Registra o FluentValidation automaticamente para a nossa classe de validação
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTransactionRequestValidator>();
@@ -119,6 +140,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // 4. Mapeia as rotas para o TransactionsController que acabamos de criar
 app.MapControllers();
