@@ -70,4 +70,28 @@ public class TransactionsController : ControllerBase
 
         return Ok(response); // Retorna 200 OK com os dados
     }
+
+    [HttpGet("user/{userId:guid}")]
+    public async Task<IActionResult> GetTransactionsByUserId([FromRoute] Guid userId)
+    {
+        // Consulta as transações filtrando por SenderId OU ReceiverId, ordenando pelas mais recentes
+        var transactions = await _context.Transactions
+            .AsNoTracking()
+            .Where(t => t.SenderId == userId || t.ReceiverId == userId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
+        // Mapeia a lista de entidades para a lista de DTOs
+        var response = transactions.Select(t => new UserTransactionHistoryDto(
+            t.Id,
+            t.SenderId,
+            t.ReceiverId,
+            t.Amount,
+            t.Status.ToString(),
+            t.CreatedAt
+        )).ToList();
+
+        // Retorna 200 OK com a lista (mesmo se vazia, o padrão REST para listagens é retornar array vazio [] com status 200)
+        return Ok(response);
+    }
 }
