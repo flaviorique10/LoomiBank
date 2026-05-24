@@ -26,4 +26,13 @@ public class Customer
 
     // Construtor vazio exigido pelo Entity Framework Core
     protected Customer() { }
+
+    // Método para atualização parcial mantendo a classe no controle de seu estado
+    public void Update(string? name, string? email, string? address, BankingDetails? bankingDetails)
+    {
+        if (!string.IsNullOrWhiteSpace(name)) Name = name;
+        if (!string.IsNullOrWhiteSpace(email)) Email = email;
+        if (!string.IsNullOrWhiteSpace(address)) Address = address;
+        if (bankingDetails != null) BankingDetails = bankingDetails;
+    }
 }
