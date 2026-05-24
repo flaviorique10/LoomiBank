@@ -1,4 +1,6 @@
+using Customers.Application.Validators;
 using Customers.Infrastructure.Persistence;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +9,9 @@ builder.Services.AddOpenApi();
 
 // Suporte a Controllers
 builder.Services.AddControllers();
+
+// Registrando o FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<CustomerUpdateRequestValidator>();
 
 // Configuração do Banco de Dados (PostgreSQL)
 builder.Services.AddDbContext<CustomerDbContext>(options =>

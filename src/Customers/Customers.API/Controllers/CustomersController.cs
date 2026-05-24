@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using Customers.Application.DTOs;
+using Customers.Domain.ValueObjects;
 using Customers.Infrastructure.Persistence;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -65,5 +67,47 @@ public class CustomersController : ControllerBase
 
         // 5. Retorna o dado original
         return Ok(responseDto);
+    }
+
+    [HttpPatch("{id:guid}")]
+    public async Task<IActionResult> UpdateCustomerPartial(
+        [FromRoute] Guid id,
+        [FromBody] CustomerUpdateRequestDto request,
+        [FromServices] IValidator<CustomerUpdateRequestDto> validator)
+    {
+        // 1. Validação do DTO usando FluentValidation
+        var validationResult = await validator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(validationResult.Errors.Select(e => new { Field = e.PropertyName, Error = e.ErrorMessage }));
+        }
+
+        // 2. Busca do Cliente no Banco
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
+        if (customer == null)
+        {
+            return NotFound(new { Message = "Cliente não encontrado." });
+        }
+
+        // 3. Montagem do Value Object (se enviado)
+        BankingDetails? newBankingDetails = null;
+        if (request.BankingDetails != null)
+        {
+            newBankingDetails = new BankingDetails(
+                request.BankingDetails.Agency!,
+                request.BankingDetails.AccountNumber!);
+        }
+
+        // 4. Atualização segura da Entidade
+        customer.Update(request.Name, request.Email, request.Address, newBankingDetails);
+
+        // 5. Salva no banco de dados
+        await _context.SaveChangesAsync();
+
+        // 6. Invalidação do Cache no Redis (Para evitar dados "fantasmas")
+        var cacheKey = $"customer_{id}";
+        await _cache.RemoveAsync(cacheKey);
+
+        return NoContent(); // 204 No Content é o padrão REST para atualizações bem-sucedidas
     }
 }
