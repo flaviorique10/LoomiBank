@@ -1,5 +1,7 @@
+using Customers.Application.Services;
 using Customers.Application.Validators;
 using Customers.Infrastructure.Persistence;
+using Customers.Infrastructure.Services;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +25,11 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
     options.InstanceName = "LoomiBank_Customers_";
 });
+
+// Configuração do Serviço de Upload da Azure
+var blobConnectionString = builder.Configuration.GetConnectionString("AzureBlobStorage");
+builder.Services.AddScoped<IBlobStorageService>(provider =>
+    new AzureBlobStorageService(blobConnectionString!));
 
 var app = builder.Build();
 
