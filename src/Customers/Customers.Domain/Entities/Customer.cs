@@ -35,4 +35,10 @@ public class Customer
         if (!string.IsNullOrWhiteSpace(address)) Address = address;
         if (bankingDetails != null) BankingDetails = bankingDetails;
     }
+
+    // Método para atualizar a foto de perfil
+    public void UpdateProfilePicture(string profilePictureUrl)
+    {
+        ProfilePictureUrl = profilePictureUrl;
+    }
 }

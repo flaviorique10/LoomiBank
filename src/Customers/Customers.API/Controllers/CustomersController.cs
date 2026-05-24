@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Customers.Application.DTOs;
+using Customers.Application.Services;
 using Customers.Domain.ValueObjects;
 using Customers.Infrastructure.Persistence;
 using FluentValidation;
@@ -109,5 +110,46 @@ public class CustomersController : ControllerBase
         await _cache.RemoveAsync(cacheKey);
 
         return NoContent(); // 204 No Content é o padrão REST para atualizações bem-sucedidas
+    }
+
+    [HttpPatch("{id:guid}/profile-picture")]
+    public async Task<IActionResult> UploadProfilePicture(
+        [FromRoute] Guid id,
+        IFormFile file,
+        [FromServices] IBlobStorageService blobStorageService)
+    {
+        // 1. Validação básica de segurança
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { Message = "Nenhum arquivo foi enviado." });
+        }
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            return BadRequest(new { Message = "Apenas imagens JPG, JPEG e PNG são permitidas." });
+        }
+
+        // 2. Busca o cliente no banco
+        var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
+        if (customer == null)
+        {
+            return NotFound(new { Message = "Cliente não encontrado." });
+        }
+
+        // 3. Faz o upload para o Azure Blob Storage
+        using var stream = file.OpenReadStream();
+        var imageUrl = await blobStorageService.UploadProfilePictureAsync(stream, file.FileName, file.ContentType);
+
+        // 4. Atualiza a entidade e salva no banco de dados
+        customer.UpdateProfilePicture(imageUrl);
+        await _context.SaveChangesAsync();
+
+        // 5. Invalida o cache do Redis para não retornar a foto velha
+        var cacheKey = $"customer_{id}";
+        await _cache.RemoveAsync(cacheKey);
+
+        return Ok(new { ProfilePictureUrl = imageUrl });
     }
 }
