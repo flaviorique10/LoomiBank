@@ -23,7 +23,8 @@ public class TransactionsController : ControllerBase
     public async Task<IActionResult> CreateTransaction(
         [FromBody] CreateTransactionRequestDto request,
         [FromServices] IValidator<CreateTransactionRequestDto> validator,
-        [FromServices] ICustomerIntegrationService customerIntegrationService) // <- Serviço injetado aqui
+        [FromServices] ICustomerIntegrationService customerIntegrationService,
+        [FromServices] MassTransit.IPublishEndpoint publishEndpoint) // <- Serviço injetado aqui
     {
         // 1. Validação dos dados de entrada usando FluentValidation
         var validationResult = await validator.ValidateAsync(request);
@@ -48,10 +49,20 @@ public class TransactionsController : ControllerBase
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
 
-        // 5. Monta o DTO de resposta
+        // 5. Publica o evento no RabbitMQ de forma assíncrona
+        var evento = new Transactions.Application.Events.TransferCompletedEvent(
+            transaction.Id,
+            transaction.SenderId,
+            transaction.ReceiverId,
+            transaction.Amount,
+            transaction.CreatedAt
+        );
+        await publishEndpoint.Publish(evento);
+
+        // 6. Monta o DTO de resposta
         var response = new TransactionResponseDto(transaction.Id, transaction.Status.ToString(), transaction.CreatedAt);
 
-        // 6. Retorna 201 Created
+        // 7. Retorna 201 Created
         return CreatedAtAction(nameof(GetTransactionById), new { id = transaction.Id }, response);
     }
 
