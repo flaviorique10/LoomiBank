@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Transactions.Application.DTOs;
@@ -8,6 +9,7 @@ using Transactions.Infrastructure.Persistence;
 
 namespace Transactions.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TransactionsController : ControllerBase

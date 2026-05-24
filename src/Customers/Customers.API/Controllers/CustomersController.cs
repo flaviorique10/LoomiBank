@@ -4,12 +4,14 @@ using Customers.Application.Services;
 using Customers.Domain.ValueObjects;
 using Customers.Infrastructure.Persistence;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 
 namespace Customers.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class CustomersController : ControllerBase
@@ -112,6 +114,7 @@ public class CustomersController : ControllerBase
         return NoContent(); // 204 No Content é o padrão REST para atualizações bem-sucedidas
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPatch("{id:guid}/profile-picture")]
     public async Task<IActionResult> UploadProfilePicture(
         [FromRoute] Guid id,
