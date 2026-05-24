@@ -6,6 +6,8 @@ using Transactions.Application.Interfaces;
 using Transactions.Application.Validators;
 using Transactions.Infrastructure.Persistence;
 using Transactions.Infrastructure.Services;
+using MassTransit;
+using Transactions.Application.Consumers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,26 @@ builder.Services.AddHttpClient<ICustomerIntegrationService, CustomerIntegrationS
 })
 .AddPolicyHandler(GetRetryPolicy())
 .AddPolicyHandler(GetCircuitBreakerPolicy());
+
+// CONFIGURAÇÃO DO MASSTRANSIT (RABBITMQ)
+builder.Services.AddMassTransit(x =>
+{
+    // Registra o Consumer que criamos
+    x.AddConsumer<TransferCompletedEventConsumer>();
+
+    // Configura o transporte usando RabbitMQ
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        // Configura automaticamente as filas baseadas nos Consumers registrados
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 
