@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Transactions.Application.DTOs;
+using Transactions.Application.Interfaces;
 using Transactions.Domain.Entities;
 using Transactions.Infrastructure.Persistence;
 
@@ -21,7 +22,8 @@ public class TransactionsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateTransaction(
         [FromBody] CreateTransactionRequestDto request,
-        [FromServices] IValidator<CreateTransactionRequestDto> validator)
+        [FromServices] IValidator<CreateTransactionRequestDto> validator,
+        [FromServices] ICustomerIntegrationService customerIntegrationService) // <- Serviço injetado aqui
     {
         // 1. Validação dos dados de entrada usando FluentValidation
         var validationResult = await validator.ValidateAsync(request);
@@ -30,17 +32,26 @@ public class TransactionsController : ControllerBase
             return BadRequest(validationResult.Errors.Select(e => new { Field = e.PropertyName, Error = e.ErrorMessage }));
         }
 
-        // 2. Criação da Entidade (Nasce como Pending e gera a data UTC automaticamente pelo construtor)
+        // 2. Validação Resiliente entre Microsserviços (Usando o Polly por debaixo dos panos)
+        var senderExists = await customerIntegrationService.CheckCustomerExistsAsync(request.SenderId);
+        if (!senderExists)
+            return BadRequest(new { Message = "A conta do remetente (SenderId) não existe ou está inativa." });
+
+        var receiverExists = await customerIntegrationService.CheckCustomerExistsAsync(request.ReceiverId);
+        if (!receiverExists)
+            return BadRequest(new { Message = "A conta do destinatário (ReceiverId) não existe ou está inativa." });
+
+        // 3. Criação da Entidade
         var transaction = new Transaction(request.SenderId, request.ReceiverId, request.Amount);
 
-        // 3. Salva no banco de dados (PostgreSQL)
+        // 4. Salva no banco de dados (PostgreSQL)
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
 
-        // 4. Monta o DTO de resposta
+        // 5. Monta o DTO de resposta
         var response = new TransactionResponseDto(transaction.Id, transaction.Status.ToString(), transaction.CreatedAt);
 
-        // 5. Retorna 201 Created (Padrão REST) com os dados do protocolo
+        // 6. Retorna 201 Created
         return CreatedAtAction(nameof(GetTransactionById), new { id = transaction.Id }, response);
     }
 
