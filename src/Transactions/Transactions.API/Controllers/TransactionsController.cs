@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Transactions.Application.DTOs;
 using Transactions.Domain.Entities;
 using Transactions.Infrastructure.Persistence;
@@ -43,11 +44,30 @@ public class TransactionsController : ControllerBase
         return CreatedAtAction(nameof(GetTransactionById), new { id = transaction.Id }, response);
     }
 
-    // Endpoint de consulta (Mock) apenas para o CreatedAtAction funcionar e não quebrar a API
-    // (Implementaremos a busca real no próximo card)
     [HttpGet("{id:guid}")]
-    public IActionResult GetTransactionById(Guid id)
+    public async Task<IActionResult> GetTransactionById([FromRoute] Guid id)
     {
-        return Ok();
+        // Busca a transação no banco de dados pela chave primária
+        var transaction = await _context.Transactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        // Tratamento de erro 404 (Not Found)
+        if (transaction == null)
+        {
+            return NotFound(new { Message = "Transação não encontrada." });
+        }
+
+        // Mapeia a Entidade para o DTO de detalhes
+        var response = new TransactionDetailsResponseDto(
+            transaction.Id,
+            transaction.SenderId,
+            transaction.ReceiverId,
+            transaction.Amount,
+            transaction.Status.ToString(),
+            transaction.CreatedAt
+        );
+
+        return Ok(response); // Retorna 200 OK com os dados
     }
 }
