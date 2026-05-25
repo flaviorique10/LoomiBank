@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Customers.Application.DTOs;
 using Customers.Application.Services;
+using Customers.Domain.Entities;
 using Customers.Domain.ValueObjects;
 using Customers.Infrastructure.Persistence;
 using FluentValidation;
@@ -154,5 +155,53 @@ public class CustomersController : ControllerBase
         await _cache.RemoveAsync(cacheKey);
 
         return Ok(new { ProfilePictureUrl = imageUrl });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateCustomer(
+    [FromBody] CreateCustomerRequestDto request,
+    [FromServices] IValidator<CreateCustomerRequestDto> validator)
+    {
+        // 1. Validação do DTO usando FluentValidation (mesmo padrão do seu Patch)
+        var validationResult = await validator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(validationResult.Errors.Select(e => new { Field = e.PropertyName, Error = e.ErrorMessage }));
+        }
+
+        // 2. Regra de Negócio: Verifica se o e-mail já está em uso
+        var emailExists = await _context.Customers.AnyAsync(c => c.Email == request.Email);
+        if (emailExists)
+        {
+            return Conflict(new { Message = "Já existe um cliente cadastrado com este e-mail." });
+        }
+
+        // 3. Montagem do Value Object (BankingDetails)
+        BankingDetails? bankingDetails = null;
+        if (request.BankingDetails != null)
+        {
+            bankingDetails = new BankingDetails(
+                request.BankingDetails.Agency!,
+                request.BankingDetails.AccountNumber!);
+        }
+
+        // 4. Instancia a Entidade de Domínio (Ajuste conforme o construtor da sua classe Customer)
+        var customer = new Customer(
+            request.Name,
+            request.Email,
+            request.Address,
+            bankingDetails
+        );
+
+        // 5. Salva no banco de dados
+        _context.Customers.Add(customer);
+        await _context.SaveChangesAsync();
+
+        // 6. Retorna 201 Created apontando para a rota de GetCustomerById
+        return CreatedAtAction(
+            nameof(GetCustomerById),
+            new { id = customer.Id },
+            new { Message = "Cliente criado com sucesso!", CustomerId = customer.Id }
+        );
     }
 }

@@ -4,11 +4,12 @@ using Customers.Infrastructure.Persistence;
 using Customers.Infrastructure.Services;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi; 
+
 using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,11 +33,21 @@ builder.Services.AddSwaggerGen(c =>
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey
     });
-        
-    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+{
     {
-        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-    });
+        new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        },
+        Array.Empty<string>()
+    }
+});
 
     // Configuração para ler os comentários XML dos endpoints
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";

@@ -9,10 +9,10 @@ using Transactions.Infrastructure.Services;
 using MassTransit;
 using Transactions.Application.Consumers;
 using System.Reflection;
-using Microsoft.OpenApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,10 +37,20 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.ApiKey
     });
 
-    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+{
     {
-        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-    });
+        new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        },
+        Array.Empty<string>()
+    }
+});
 
     // Configuração para ler os comentários XML dos endpoints
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -50,6 +60,8 @@ builder.Services.AddSwaggerGen(c =>
         c.IncludeXmlComments(xmlPath);
     }
 });
+
+builder.Services.AddHttpContextAccessor();
 
 // 1. Libera o uso de Controllers
 builder.Services.AddControllers();
@@ -99,7 +111,7 @@ static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
 // Registro do HttpClient com a injeção do serviço e as políticas
 builder.Services.AddHttpClient<ICustomerIntegrationService, CustomerIntegrationService>(client =>
 {    
-    client.BaseAddress = new Uri("https://localhost:7285");
+    client.BaseAddress = new Uri("http://localhost:5130");
 
     // 3. Política de Timeout: Se a API de clientes demorar mais de 5 segundos para responder, corta a requisição
     client.Timeout = TimeSpan.FromSeconds(5);
