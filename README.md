@@ -9,8 +9,8 @@ Este repositório contém a solução desenvolvida para o desafio técnico do Lo
 ## 🌐 URLs de Produção (Live Demo na Azure)
 A aplicação está totalmente "dockerizada" e hospedada na nuvem (Microsoft Azure) utilizando serviços gerenciados de banco de dados e mensageria.
 
-* **Customers API Swagger:** `https://loomibank-customers-api-h0d3d3emewfkexcj.eastus-01.azurewebsites.net/swagger`
-* **Transactions API Swagger:** `https://loomibank-transactions-api-v1-f6azdxe6hhe0cbgh.eastus-01.azurewebsites.net/swagger`
+* **Customers API Swagger:** `https://loomibank-customers-api-h0d3d3emewfkexcj.eastus-01.azurewebsites.net/index.html`
+* **Transactions API Swagger:** `https://loomibank-transactions-api-v1-f6azdxe6hhe0cbgh.eastus-01.azurewebsites.net/index.html`
 
 ---
 
